@@ -12,9 +12,10 @@
 
 int begin_node = -1, end_node = -1;
 int map[Node_Num][Node_Num] = {0};
-int node_record[Node_Num][Node_Num] = {-1};
+int node_record[Node_Num][Node_Num] = {0};
 int is_demand[610] = {0};
 int node_of_all = 0;
+int dist[610] = {MAX_WEIGHT};
 
 struct Node 
 {
@@ -43,7 +44,6 @@ void split_str(char* str)
 					begin_node = sum;
 				else 
 					end_node = sum;
-				is_demand[sum] = count ++;
 			}
 			else
 				is_demand[sum] = 1;
@@ -94,6 +94,13 @@ void init_struct()
 	}
 }
 
+void init_node_record()
+{
+	for(int i=0; i<610; ++i)
+		for(int j = 0; j<610; ++j)
+			node_record[i][j] = 0;
+}
+
 void search_route(char *topo[5000], int edge_num, char *demand)
 {
 	freopen("file.out", "w", stdout);
@@ -102,9 +109,44 @@ void search_route(char *topo[5000], int edge_num, char *demand)
 	split_str(demand);
 	init_map(topo, edge_num);
 	init_struct();
+	init_node_record();
+
+	int min_weight  = MAX_WEIGHT;
+
+	for(int i = 0; i < node_of_all; ++i)
+		dist[i] =  map[begin_node][i];
+
+	dist[begin_node] = 0;
+	node_record[begin_node][begin_node] = 1;
 	
-	
-	printf("%d\n", node_of_all);
+	for(int i=0; i<num_of_all; ++i)
+	{
+		min_weight = MAX_WEIGHT;
+		int min_node = begin_node;
+		for(int j=0; j<num_of_all; ++j)
+		if(!node_record[j][j] && dist[j] < min_weight)
+		{
+			min_node = j;
+			min_weight = dist[j];
+		}
+		node_record[min_node][min_node] = 1;
+		Nodes[min_node].prev = begin_node;
+		Nodes[min_node].num_of_demand += is_demand[min_node];
+		Nodes[min_node].dist = dist[j];
+
+		for(int j=0; j<num_of_all; ++j)
+		if(!node_record[j][j] && map[min_node][j] < dist[j])
+		{
+			if(dist[min_node] + map[min_node][j] < dist[j])
+			{
+				dist[j] = dist[min_node] + map[min_node][j];
+				Nodes[j].prev = min_node;
+				Nodes[j].num_of_demand += Nodes[min_node].num_of_demand + is_demand[j];
+				Nodes[j].dist = dist[j];
+			}
+		}
+	}
+
 
 	/*
 	for(int i=0; i<610; ++i)
