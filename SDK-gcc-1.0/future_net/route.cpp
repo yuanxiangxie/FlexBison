@@ -14,6 +14,7 @@ using namespace std;
 #define NODE_NUM 610
 
 int Map[NODE_NUM][NODE_NUM];
+int Edge[NODE_NUM][NODE_NUM];
 int Node_of_all = 0;
 int Node_of_demand = 0;
 int Begin_node = -1, End_node = -1;
@@ -68,17 +69,32 @@ void read_data(char* topo[5000], int edge_num)
 	int a, b, c, d;
 	for(int i=0; i<NODE_NUM; ++i)
 		for(int j=0; j<NODE_NUM; ++j)
+		{
 			Map[i][j] = MAX_WEIGHT;
+			Edge[i][j] = -1;
+		}
 
 	for(int i=0; i<edge_num; ++i)
 	{
 		sscanf(topo[i], "%d,%d,%d,%d", &a, &b, &c, &d);
 		Map[b][c] = d;
+		Edge[b][c] = a;
 		if(Node_of_all < b)
 			Node_of_all = b;
 	}
 
 	Node_of_all ++;
+}
+
+void init_recorde_node()
+{
+	for(int i=0; i < Node_of_all; ++i)
+	{
+		Nodes[i].prev = -1;
+		Nodes[i].self = i;
+		Nodes[i].num_of_demand = is_demand[i];
+		Nodes[i].dist = MAX_WEIGHT;
+	}
 }
 
 int cmp( const void* a, const void* b)
@@ -103,21 +119,36 @@ void copy(Node* a, Node* b)
 
 void print_path()
 {
-	int array[NODE_NUM] = {-1};
+	int Array[Node_of_all] = {-1}; 
 	int count = 0;
+	int u = 0;
+	//for(int i=0; i<Node_of_all; ++i)
+	//	printf("%d|%d|%d|%d\n", Nodes[i].prev, Nodes[i].self, Nodes[i].num_of_demand, Nodes[i].dist);
+
 	while(struct_node.self != Begin_node)
 	{
-		array[count++] = struct_node.self;
+		Array[count++] = struct_node.self;
+		u = Nodes[struct_node.self].prev;
+		copy(&struct_node, &Nodes[u]);
 	}
+	
+	Array[count] = Begin_node;
+	unsigned short result[count];
+	for(int i= count; i > 0; --i)
+		result[count-i] = Edge[Array[i]][Array[i-1]];
+	for(int i=0; i<count; ++i)
+		record_result(result[i]);
+		//printf("%d\n", result[i]);
 }
 
 void search_route(char* topo[5000], int edge_num, char* demand)
 {
-	freopen("file.out", "w", stdout);
+	//freopen("file.out", "w", stdout);
 
 	read_demand(demand);
 	read_data(topo, edge_num);
-	
+	init_recorde_node();
+
 	bool flag = false;
 
 	Node N[Node_of_all];
@@ -125,6 +156,7 @@ void search_route(char* topo[5000], int edge_num, char* demand)
 	for(int i=0; i < Node_of_all; ++i)
 		if(Map[Begin_node][i] < MAX_WEIGHT)
 		{
+			Nodes[i].prev = Begin_node;
 			N[count_all].prev = Begin_node;
 			N[count_all].self = i;
 			N[count_all].num_of_demand = is_demand[i];
@@ -134,11 +166,15 @@ void search_route(char* topo[5000], int edge_num, char* demand)
 	for(int i=0; i<count_all; ++i)
 		s.push(N[i]);
 	node_record[Begin_node] = 1;
-	
+	//printf("%d\n", Begin_node);
+
 	while(!s.empty())
 	{
 		copy(&struct_node, &s.top());
 		s.pop();
+		node_record[struct_node.self] = 1;
+		//printf("%d\n", struct_node.self);
+
 		if(struct_node.self == End_node)
 		{
 			if(struct_node.num_of_demand == Node_of_demand)
@@ -156,11 +192,11 @@ void search_route(char* topo[5000], int edge_num, char* demand)
 		for(int i=0; i < Node_of_all; ++i)
 			if(Map[Min_node][i] < MAX_WEIGHT && !node_record[i])
 			{
+				Nodes[i].prev = Min_node;
 				N[count_all].prev = Min_node;
 				N[count_all].self = i;
 				N[count_all].num_of_demand = struct_node.num_of_demand + is_demand[i];
 				N[count_all++].dist = struct_node.dist + Map[Min_node][i];
-				node_record[i] = 1;
 				flag = true;
 			}
 		if(!flag)
@@ -174,6 +210,6 @@ void search_route(char* topo[5000], int edge_num, char* demand)
 			s.push(N[i]);
 	}
 
-	fclose(stdout);
+	//fclose(stdout);
 }
 
