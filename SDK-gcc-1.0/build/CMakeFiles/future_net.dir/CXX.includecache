@@ -47,11 +47,15 @@ route.h
 /home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/future_net/route.h
 lib_record.h
 /home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/future_net/lib_record.h
-stdio.h
+cstdio
 -
 string.h
 -
 ctype.h
+-
+stdlib.h
+-
+stack
 -
 
 /home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/future_net/route.h
