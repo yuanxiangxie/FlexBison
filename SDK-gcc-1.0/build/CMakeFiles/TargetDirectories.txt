@@ -1,3 +1,0 @@
-/home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/build/CMakeFiles/edit_cache.dir
-/home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/build/CMakeFiles/rebuild_cache.dir
-/home/yuanxiang/Desktop/Program/HUAWEI/SDK-gcc-1.0/build/CMakeFiles/future_net.dir
