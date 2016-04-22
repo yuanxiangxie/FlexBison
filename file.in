@@ -1,6 +1,4 @@
-/*
-* This is my huawei test file
-*/
+
 #include "route.h"
 #include "lib_record.h"
 #include <cstdio>

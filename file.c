@@ -1,632 +1,257 @@
-/*
-* This is my huawei test file
-*/
-#include "route.h"
-#include "lib_record.h"
-#include <cstdio>
+//Compile as: gcc <filename> -lcrypt -w
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdlib.h>
-#include <stack>
-#include <time.h>
-#include<stdbool.h>
+#include <unistd.h>
+#include <errno.h>
+#include <crypt.h>
+#define max 4294967
 
-using namespace std;
-
-#define Num_OF_All 610
-#define Num_OF_Demand 55
-#define MAX_WEIGHT 7200000
-
-double times_cal = 0.0;
-int vertex_num = 0;
-
-
-int Begin_Node = -1, End_Node = -1;
-int Is_Demand[Num_OF_All] = {0};
-int Record_Array[Num_OF_All][Num_OF_All] = {0};
-int Return_Record_Array[Num_OF_All][Num_OF_All] = {0};
-int Path_Array[Num_OF_All][Num_OF_All] = { -1};
-int Return_Path_Array[Num_OF_All][Num_OF_All] = {-1};
-int num_of_all = 0, num_of_demand = 0;
-int node_output[Num_OF_All] = {0};
-int Return_node_output[Num_OF_All] = {0};
-
-int final_path[Num_OF_All] = {-1};
-int final_weight = MAX_WEIGHT;
-int final_count = 0;
-
-int Begin_Node_Num= 0, End_Node_Num = 0;
-int Begin_Node_Array[Num_OF_All] = {0}, End_Node_Array[Num_OF_All] = {0};
-bool Begin_Node_Flag[Num_OF_All]={false}, End_Node_Flag[Num_OF_All] = {false}; 
-
-typedef struct 
+int main()
 {
-	int prev;
-	int is_viewed;
-	int self_num;
-	int num_of_demand;
-	int dist;
-}Node;
+	int sd,c,s,connected,bytes_r,m;
+	int count=0,flag=1;
+	char fname[50],sip[25],recv_data[1024],user_data[1024],pass_data[1024],op[max],send_data[1024],*op1;
+	struct sockaddr_in caddr;
+	struct hostent *he;
+	FILE *fp;
+	printf("enter the server ip address \n");
+	scanf("%s",sip);
+	he=gethostbyname(sip);
+	sd = socket(AF_INET, SOCK_STREAM, 0);
+	if (sd == -1)  // TCP connection
+	{	perror("Socket");
+		exit(1);
+        }
+	caddr.sin_family = AF_INET;     
+        caddr.sin_port = htons(10165);    // Port to connect to server
+        caddr.sin_addr = *((struct in_addr *)he->h_addr);
+        bzero(&(caddr.sin_zero),8); 
 
-typedef struct
-{
-	int Edge_Num;
-	int Weight;
-}Route_Map;
-
-Route_Map Map[Num_OF_All][Num_OF_All];
-Route_Map Return_Map[Num_OF_All][Num_OF_All];
-//stack<Node> s;
-//stack<Node> return_s;
-
-stack<Node> S[Num_OF_All];
-stack<Node> Return_S[Num_OF_All];
-
-
-void read_demand(char* demand)
-{
-	int count = 0, sum = 0;
-	int length = strlen(demand);
-	for(int i=0; i < length + 2 ; ++i)
-		if(isdigit(demand[i]))
-			sum = sum * 10 + demand[i] - '0';
-		else if(demand[i] == ',')
-		{
-			if(!count)
-				Begin_Node = sum;
-			else
-				End_Node = sum;
-			sum = 0;
-			count = 1;
-		}
-		else if(demand[i] == '\n')
-		{
-			Is_Demand[sum] = 1;
-			num_of_demand ++;
-			break;
-		}
-		else
-		{
-			Is_Demand[sum] = 1;
-			sum = 0;
-			num_of_demand ++;
-		}
-}
-
-void read_data(char* topo[5000], int edge)
-{
-	int edge_num, node_1, node_2, weight;
-	for(int i=0; i < Num_OF_All; ++i)
-	{
-		for(int j=0; j < Num_OF_All; ++j)
-		{
-			Map[i][j].Edge_Num = -1;
-			Map[i][j].Weight = MAX_WEIGHT;
-			Return_Map[i][j].Edge_Num = -1;
-			Return_Map[i][j].Weight = MAX_WEIGHT;
-		}
-	}
-
-	for(int i=0; i < edge; ++i)
-	{
-		sscanf(topo[i], "%d,%d,%d,%d", &edge_num, &node_1, &node_2, &weight); 
-		if(weight < Map[node_1][node_2].Weight)
-		{
-			if(node_1 == Begin_Node)
-				Begin_Node_Array[Begin_Node_Num++] = node_2;
-			if(node_2 == End_Node)
-				End_Node_Array[End_Node_Num++] = node_1;
-
-			Map[node_1][node_2].Edge_Num = edge_num;
-			Map[node_1][node_2].Weight = weight;
-			node_output[node_1] ++;
-
-			Return_Map[node_2][node_1].Edge_Num = edge_num;
-			Return_Map[node_2][node_1].Weight = weight;
-			Return_node_output[node_2] ++;
-		}
-		if(num_of_all < node_1)
-			num_of_all = node_1;
-	}
-	num_of_all ++;
-}
-
-void init_parameter()
-{
-	for(int i = 0; i<num_of_all; ++i)
-		for(int j=0; j<num_of_all; ++j)
-		{
-			Record_Array[i][j] = 0;
-			Return_Record_Array[i][j] = 0;
-			Path_Array[i][j] = -1;
-			Return_Path_Array[i][j] = -1;
-		}
-}
-
-
-void copy_node(Node* a, Node* b)
-{
-	(*a).prev = (*b).prev;
-	(*a).is_viewed = (*b).is_viewed;
-	(*a).self_num = (*b).self_num;
-	(*a).num_of_demand = (*b).num_of_demand;
-	(*a).dist = (*b).dist;
-}
-
-int cmp_1(const void* a, const void* b)
-{
-	Node* _a = (Node*)a; Node* _b = (Node*)b;
-	/*
-	if((*_a).self_num == Begin_Node && (*_a).num_of_demand == num_of_demand)
-		return 1;
-	else if((*_b).self_num == Begin_Node && (*_b).num_of_demand == num_of_demand)
-		return -1;
-	else if((*_a).dist < (*_b).dist)
-		return 1;
-	else if((*_a).dist == (*_b).dist && (*_a).num_of_demand > (*_b).num_of_demand)
-		return 1;
-	else
-		return -1;
-	*/
-	//-------------------------------------------------------------------------------
-
-	if((*_a).self_num == Begin_Node && (*_a).num_of_demand == num_of_demand)
-		return 1;
-	else if((*_b).self_num == Begin_Node && (*_b).num_of_demand == num_of_demand)
-		return -1;
-	else if((*_a).num_of_demand > (*_b).num_of_demand)
-		return 1;
-	else if((*_a).num_of_demand == (*_b).num_of_demand && (*_a).dist < (*_b).dist)
-		return 1;
-	else 
-		return -1;
-}
-
-
-int cmp(const void* a, const void* b)
-{
-	Node* _a = (Node*)a; Node* _b = (Node*)b;
-	/*
-	if((*_a).self_num == End_Node && (*_a).num_of_demand == num_of_demand)
-		return 1;
-	else if(((*_b).self_num == End_Node) && (*_b).num_of_demand == num_of_demand)
-		return -1;
-	else if((*_a).dist < (*_b).dist)
-		return 1;
-	else if((*_a).dist == (*_b).dist && (*_a).num_of_demand > (*_b).num_of_demand)
-		return 1;
-	else
-		return -1;
-	*/
-	//-----------------------------------------------------------------------------
-	if((*_a).self_num == End_Node && (*_a).num_of_demand == num_of_demand)
-		return 1;
-	else if(((*_b).self_num == End_Node) && (*_b).num_of_demand == num_of_demand)
-		return -1;
-	else if((*_a).num_of_demand > (*_b).num_of_demand)
-		return 1;
-	else if((*_a).num_of_demand == (*_b).num_of_demand && (*_a).dist < (*_b).dist)
-		return 1;
-	else
-		return -1;
-	//-----------------------------------------------------------------------------
-}
-
-void save_path(int which_path)
-{
-	int num = End_Node, count = 0;
-	int _sum = 0, _count = 0;
-	unsigned short result[num_of_all];
-	unsigned short result_node[num_of_all];
-	while(Path_Array[which_path][num] != Begin_Node)
-	{
-		result_node[count++] = num;
-		num = Path_Array[which_path][num];
-	}
-	result_node[count++] = num;
-	result_node[count] = Begin_Node;
-	for(int i=count; i>0; --i)
-	{
-		_sum += Map[result_node[i]][result_node[i-1]].Weight;
-		result[_count++] = Map[result_node[i]][result_node[i-1]].Edge_Num;
-		//printf("%d|", result[_count-1]);
-	}
-	//printf("\n");
-	if(_sum < final_weight)
-	{
-		final_weight = _sum;
-		for(int i=0; i<_count; ++i)
-			final_path[i] = result[i];
-		final_count = _count;
-	}
-}
-
-void return_save_path(int which_path)
-{
-	int num = Begin_Node, count = 0;
-	int _sum = 0, _count = 0;
-	unsigned short result[num_of_all];
-	unsigned short result_node[num_of_all];
-	while(Return_Path_Array[which_path][num] != End_Node)
-	{
-		result_node[count++] = num;
-		num = Return_Path_Array[which_path][num];
-	}
-	result_node[count++] = num;
-	result_node[count] = End_Node;
-	for(int i=0; i<count; ++i)
-	{
-		_sum += Map[result_node[i]][result_node[i+1]].Weight;
-		result[_count++] = Map[result_node[i]][result_node[i+1]].Edge_Num;
-		//printf("%d|", result[_count-1]);
-	}
-	//printf("\n");
-	if(_sum < final_weight)
-	{
-		final_weight = _sum;
-		for(int i=0; i<_count; ++i)
-			final_path[i] = result[i];
-		final_count = _count;
-	}
-}
-
-void print_final_path()
-{
-	if(final_weight < MAX_WEIGHT)
-	for(int i=0; i<final_count; ++i)
-		record_result(final_path[i]);
-	else
-		printf("NA\n");
-}
-
-/*
-void print_path()
-{
-	int num = End_Node, count = 0;
-	unsigned short result_node[num_of_all];
-	while(Path_Array[num] != Begin_Node)
-	{
-		result_node[count++] = num;
-		num = Path_Array[num];
-	}
-	result_node[count++] = num;
-	result_node[count] = Begin_Node;
-	//--------------------------------------
-	for(int i=count; i>=0; --i)
-		printf("%d ", result_node[i]);
-	printf("\n");
-	//-------------------------------------
-	for(int i=count; i>0; --i)
-		record_result(Map[result_node[i]][result_node[i-1]].Edge_Num);
-}
-*/
-/*
-void return_print_path()
-{
-	int num = Begin_Node, count = 0;
-	unsigned short result_node[num_of_all];
-	while(Return_Path_Array[num] != End_Node)
-	{
-		result_node[count++] = num;
-		num = Return_Path_Array[num];
-	}
-	result_node[count++] = num;
-	result_node[count] = End_Node;
-	for(int i=0;i<count; ++i)
-		record_result(Map[result_node[i]][result_node[i+1]].Edge_Num);
-}
-*/
-
-void add_view(Node* a, Node* b)
-{
-	(*a).is_viewed = 1;
-	(*a).prev = (*b).prev;
-	(*a).self_num = (*b).self_num;
-	(*a).num_of_demand = (*b).num_of_demand;
-	(*a).dist = (*b).dist;
-}
-
-
-
-void search_route(char* topo[5000], int edge, char* demand)
-{
-	freopen("file.out", "w", stdout);
-
-	read_demand(demand);
-	read_data(topo, edge);
-	init_parameter();
-
-	int need_of_demand;
-	int need_of_dist;
-
-	Node start_Node; //traintion_Node;
-	Node Begin_Node_Trainsition[Begin_Node_Num], End_Node_Trainsition[End_Node_Num];
-	Node end_Node; // trainsition_Node;
-
-	start_Node.self_num = Begin_Node;
-	start_Node.prev = -1;
-	start_Node.num_of_demand = 0;
-	start_Node.dist = 0;
-	start_Node.is_viewed = 0;
-
-	end_Node.self_num = End_Node;
-	end_Node.prev = -1;
-	end_Node.num_of_demand = 0;
-	end_Node.dist = 0;
-	end_Node.is_viewed = 0;
-
-	Node second_Node;
-
-	for(int i=0; i<Begin_Node_Num; ++i)
-	{
-		//printf("%d | %d\n", i, Begin_Node_Array[i]);
-		while(!S[i].empty())
-			S[i].pop();
-		Record_Array[i][Begin_Node] = 1;
-		S[i].push(start_Node);
-		second_Node.self_num = Begin_Node_Array[i];
-		second_Node.prev = Begin_Node;
-		second_Node.num_of_demand = Is_Demand[second_Node.self_num];
-		second_Node.dist = Map[Begin_Node][second_Node.self_num].Weight;
-		second_Node.is_viewed = 0;
-		S[i].push(second_Node);
-	}
-
-	for(int i=0; i<End_Node_Num; ++i)
-	{
-		//printf("the End_Node_Num: %d\n", End_Node_Num);
-		while(!Return_S[i].empty())
-			Return_S[i].pop();
-		Return_Record_Array[i][End_Node] = 1;
-		Return_S[i].push(end_Node);
-		second_Node.self_num = End_Node_Array[i];
-		second_Node.prev = End_Node;
-		second_Node.num_of_demand = Is_Demand[second_Node.self_num];
-		second_Node.dist = Return_Map[End_Node][second_Node.self_num].Weight;
-		second_Node.is_viewed = 0;
-		Return_S[i].push(second_Node);
-	}
-
-
-	int Node_Count[Begin_Node_Num]  = {0};
-	int Return_Node_Count[End_Node_Num]  = {0};
-
-	bool empty_bool = false;
-	for(int i=0; i<Begin_Node_Num; ++i)
-		if(S[i].size() > 1)
-			empty_bool = true;
-		else 
-			continue;
-	for(int i=0; i<End_Node_Num; ++i)
-		if(Return_S[i].size() > 1)
-			empty_bool = true;
-		else
-			continue;
-
-	while(empty_bool)
-	{
-		//printf("Yes\n");
-		for(int i=0; i<Begin_Node_Num; ++i)
-			if(S[i].size() > 1)
-			{
-				//printf("size: %d | %d\n", i, S[i].size());
-				copy_node(&Begin_Node_Trainsition[i], &S[i].top());
-				//printf("%d | %d\n", i, Begin_Node_Trainsition[i].self_num);
-				S[i].pop();
-				Begin_Node_Flag[i] = false;
-			}
-			else
-				Begin_Node_Flag[i] = true;
-
-		for(int i=0; i<End_Node_Num; ++i)
-			if(Return_S[i].size() > 1)
-			{
-				copy_node(&End_Node_Trainsition[i], &Return_S[i].top());
-				//if(i==1)
-				//	printf("%d | %d\n", i, End_Node_Trainsition[i].self_num);
-				Return_S[i].pop();
-				End_Node_Flag[i] = false;
-			}
-			else
-				End_Node_Flag[i] = true;
-
-		times_cal = (double)clock()/CLOCKS_PER_SEC;
-		if(9.0 - times_cal < 0)
-			break;
-
-		for(int i=0; i<Begin_Node_Num; ++i)
-			if(!Begin_Node_Flag[i] && Begin_Node_Trainsition[i].self_num == End_Node && Begin_Node_Trainsition[i].num_of_demand == num_of_demand)
-			{
-				//printf("the begin to end: %d | %d | %d\n", i, num_of_demand, Begin_Node_Trainsition[i].num_of_demand);
-				save_path(i);
-				Record_Array[i][Begin_Node_Trainsition[i].self_num] = 0;
-				Begin_Node_Flag[i] = true;
-			}
-			else if(!Begin_Node_Flag[i] && Begin_Node_Trainsition[i].self_num == End_Node && Begin_Node_Trainsition[i].num_of_demand != num_of_demand)
-			{
-				Record_Array[i][Begin_Node_Trainsition[i].self_num] = 0;
-				Begin_Node_Flag[i] = true;
-			}
-			else
-			{
-				if(!Begin_Node_Flag[i] && Begin_Node_Trainsition[i].is_viewed == 1)
-				{
-					Record_Array[i][Begin_Node_Trainsition[i].self_num] = 0;
-					Begin_Node_Flag[i] = true;
-				}
-			}
-
-
-		for(int i=0; i<End_Node_Num; ++i)
-			if(!End_Node_Flag[i] && End_Node_Trainsition[i].self_num == Begin_Node && End_Node_Trainsition[i].num_of_demand == num_of_demand)
-			{
-				return_save_path(i);
-				Return_Record_Array[i][End_Node_Trainsition[i].self_num] = 0;
-				//for(int j=0; j<num_of_all; ++j)
-					//printf("record_Array: %d | %d\n", i, Return_Record_Array[i][j]);
-				End_Node_Flag[i] = true;
-			}
-			else if(!End_Node_Flag[i] && End_Node_Trainsition[i].self_num == Begin_Node && End_Node_Trainsition[i].num_of_demand != num_of_demand)
-			{
-				Return_Record_Array[i][End_Node_Trainsition[i].self_num] = 0;
-				End_Node_Flag[i] = true;
-			}
-			else
-			{
-				if(!End_Node_Flag[i] && End_Node_Trainsition[i].is_viewed == 1)
-				{
-					Return_Record_Array[i][End_Node_Trainsition[i].self_num] = 0;
-					End_Node_Flag[i] = true;
-				}
-			}
-
-		for(int i=0; i<Begin_Node_Num; ++i)
-		{
-			if(!Begin_Node_Flag[i])
-			{
-				Node view_Node;
-				add_view(&view_Node, &Begin_Node_Trainsition[i]);
-				S[i].push(view_Node);
-
-				Path_Array[i][Begin_Node_Trainsition[i].self_num] = Begin_Node_Trainsition[i].prev;
-				Record_Array[i][Begin_Node_Trainsition[i].self_num] = 1;
-				Node_Count[i] = 0;
-			}
-		}
-
-		Node Nodes[Begin_Node_Num][num_of_all];
-
-		for(int i=0; i<End_Node_Num; ++i)
-		{
-			if(!End_Node_Flag[i])
-			{
-				Node return_view_Node;
-				add_view(&return_view_Node, &End_Node_Trainsition[i]);
-				Return_S[i].push(return_view_Node);
-
-				Return_Path_Array[i][End_Node_Trainsition[i].self_num] = End_Node_Trainsition[i].prev;
-				Return_Record_Array[i][End_Node_Trainsition[i].self_num] = 1;
-				Return_Node_Count[i] = 0;
-			}
-		}
-		Node Return_Nodes[End_Node_Num][num_of_all];
-
-
-		bool judge_flag = false;
-
-		for(int i=0; i<Begin_Node_Num; ++i)
-			if(!Begin_Node_Flag[i])
-				judge_flag = true;
-			else
-				continue;
-		for(int i=0; i<End_Node_Num; ++i)
-			if(!End_Node_Flag[i])
-				judge_flag = true;
-			else
-				continue;
-
-
-		if(judge_flag)
-		{
-			for(int i=0; i<num_of_all; ++i)
-			{
-				for(int j = 0; j<Begin_Node_Num; ++j)
-				{
-					if(!Begin_Node_Flag[j] && Map[Begin_Node_Trainsition[j].self_num][i].Weight < MAX_WEIGHT)
-					{
-						//printf("%d | %d\n", i, Begin_Node_Trainsition[j].self_num);
-						//printf("Begin_Node_Trainsition.dist: %d -- > %d | %d + %d\n", Begin_Node_Trainsition[j].self_num, i, Begin_Node_Trainsition[j].dist, Map[Begin_Node_Trainsition[j].self_num][i].Weight);
-						need_of_dist = Begin_Node_Trainsition[j].dist + Map[Begin_Node_Trainsition[j].self_num][i].Weight;
-						need_of_demand = Begin_Node_Trainsition[j].num_of_demand + Is_Demand[i];
-
-						if(!Begin_Node_Flag[j] && (Begin_Node_Trainsition[j].self_num != i) && (need_of_dist < final_weight) && !Record_Array[j][i] && (node_output[i] > 0 || i == End_Node))
-						{
-						//if(j == 1)
-						//	printf("%d --> %d | %d --> %d\n", Begin_Node_Trainsition[j].self_num, i, need_of_dist, final_weight);
-							Path_Array[j][i] = Begin_Node_Trainsition[j].self_num;
-							Nodes[j][Node_Count[j]].prev = Begin_Node_Trainsition[j].self_num; 
-							Nodes[j][Node_Count[j]].is_viewed = 0;
-							Nodes[j][Node_Count[j]].self_num = i;
-							//printf("the answe is: %d | %d | %d | %d\n", Nodes[j][Node_Count[j]].self_num, j, Node_Count[j], i);
-							Nodes[j][Node_Count[j]].num_of_demand = need_of_demand;
-							Nodes[j][Node_Count[j]++].dist = need_of_dist;
-						}
-					}
-				}
-
-				for(int j = 0; j<End_Node_Num; ++j)
-				{
-					if(!End_Node_Flag[j] && Return_Map[End_Node_Trainsition[j].self_num][i].Weight < MAX_WEIGHT)
-					{
-						need_of_dist = End_Node_Trainsition[j].dist + Return_Map[End_Node_Trainsition[j].self_num][i].Weight;
-						need_of_demand = End_Node_Trainsition[j].num_of_demand + Is_Demand[i];
-
-						if(!End_Node_Flag[j] && (End_Node_Trainsition[j].self_num != i) && (need_of_dist <= final_weight) && !Return_Record_Array[j][i] && (Return_node_output[i] > 0 || i == Begin_Node))
-						{
-							Return_Path_Array[j][i] = End_Node_Trainsition[j].self_num;
-							Return_Nodes[j][Return_Node_Count[j]].prev = End_Node_Trainsition[j].self_num;
-							Return_Nodes[j][Return_Node_Count[j]].is_viewed = 0;
-							Return_Nodes[j][Return_Node_Count[j]].self_num = i;
-							Return_Nodes[j][Return_Node_Count[j]].num_of_demand = need_of_demand;
-							Return_Nodes[j][Return_Node_Count[j]++].dist = need_of_dist;
-						}
-					}
-				}
-			}
-				//printf("--------------------------------------------------\n");
-		}
-
-		for(int i=0; i < Begin_Node_Num; ++i)
-		{
-			if(!Begin_Node_Flag[i] && Node_Count[i] == 0)
-			{
-				S[i].pop();
-				Record_Array[i][Begin_Node_Trainsition[i].self_num] = 0;
-				Begin_Node_Flag[i] = true;
-			}
-
-			if(!Begin_Node_Flag[i])
-			{
-				qsort(Nodes[i], Node_Count[i], sizeof(Nodes[i][0]), cmp);
-				for(int j=0; j<Node_Count[i]; ++j)
-					S[i].push(Nodes[i][j]);
-			}
-		}
-
-		for(int i=0; i < End_Node_Num; ++i)
-		{
-			if(!End_Node_Flag[i] && Return_Node_Count[i] == 0)
-			{
-				Return_S[i].pop();
-				Return_Record_Array[i][End_Node_Trainsition[i].self_num] = 0;
-				End_Node_Flag[i] = true;
-			}
-			 
-			if(!End_Node_Flag[i])
-			{
-				qsort(Return_Nodes[i], Return_Node_Count[i], sizeof(Return_Nodes[i][0]), cmp_1);
-				for(int j=0; j<Return_Node_Count[i]; ++j)
-					Return_S[i].push(Return_Nodes[i][j]);
-			}
-		}
-
-	empty_bool = false;
-	for(int i=0; i<Begin_Node_Num; ++i)
-		if(S[i].size() > 1)
-			empty_bool = true;
-		else 
-			continue;
-	for(int i=0; i<End_Node_Num; ++i)
-		if(Return_S[i].size() > 1)
-			empty_bool = true;
-		else
-			continue;
-	}
-
-	print_final_path();
+	connected=connect(sd,(struct sockaddr *)&caddr,sizeof(struct sockaddr));
 	
-	fclose(stdout);
+	if(connected>=0)
+		printf("connected to server \n");
+	else
+	{	printf("connection failed \n");
+		exit(1);
+	}
+	
+	
+	bytes_r=recv(sd,recv_data,1024,0);	//1. receivng connected
+        recv_data[bytes_r] = '\0';
+	printf("#ssh %s",recv_data);//printing intial message that connection is established
+	while(flag)
+	{	printf("\n#ssh: username: ");
+		scanf("%s",user_data);
+		send(sd,user_data,strlen(user_data), 0);//2. sending username
+		printf("\n#ssh: passwd: ");
+		scanf("%s",pass_data);
+		
+		op1=crypt(pass_data,user_data);
+		
+		strcpy(pass_data,op1);
+		send(sd,pass_data,strlen(pass_data), 0);//3. sending "encrypted" password
+	
+		bytes_r=recv(sd,recv_data,1024,0);	//4. receivng match / fail
+		recv_data[bytes_r] = '\0';
+		if(recv_data[0]=='M')			//password match
+		{	printf("%s",recv_data);	
+			while(1)	
+			{	fflush(stdout);
+				printf("\n#ssh@%s: ",user_data);	//waiting for the command from the user
+				if(strcmp(user_data,"admin")==0)
+				{	scanf("%s",send_data);
+					send(sd,send_data,strlen(send_data), 0);//sending cmd
+					if(strcmp(send_data,"quit")==0)
+						break;
+					else if(strcmp(send_data,"useradd")==0)
+					{	printf("\nEnter the new user_name:\n#ssh@%s: ",user_data);	
+						scanf("%s",send_data);
+						send(sd,send_data,strlen(send_data), 0);//sending username
+					
+						bytes_r=recv(sd,recv_data,1024,0);	
+						recv_data[bytes_r] = '\0';
+					
+						if(strcmp(recv_data,"User already exists!\n")!=0)
+						{	printf("\nEnter the new passwd:\n#ssh@%s: ",user_data);	
+							scanf("%s",pass_data);
+							op1=crypt(pass_data,send_data);
+							strcpy(send_data,op1);						
+							send(sd,send_data,strlen(send_data), 0);//sending password
+						}
+						else
+						{	printf("%s\n",recv_data);
+						}					
+					}
+					else if(strcmp(send_data,"put")==0)
+					{	printf("\nEnter the new file:\n#ssh@%s: ",user_data);
+						//memset(send_data,'\0',strlen(send_data));
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+					
+						fp=fopen(fname,"rb");
+						fseek(fp,0L,SEEK_END);
+						m=ftell(fp);
+						op1=malloc(m*sizeof(char));
+						fseek(fp,0,SEEK_SET);
+						fread(op1,m,1,fp);
+						send(sd,op1,m,0);
+						fclose(fp);
+							
+					}
+					else if(strcmp(send_data,"get")==0)
+					{	printf("\nEnter the new file:\n#ssh@%s: ",user_data);
+						//memset(send_data,'\0',strlen(send_data));
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						//recv(connected,fname,sizeof(fname),0);
+						if ((fp=fopen(fname,"w"))==NULL)
+						{	printf("error in opening in a file");
+							exit(0);
+						}
+						else 
+							printf("file opened successfully \n");
+						memset(op,'\0',strlen(op));
+						
+						recv(sd,op,sizeof(op),0);
+						fwrite(op,strlen(op),1,fp);
+						fclose(fp);
+						printf("The file has been transferred!\n");
+					}
+					else if(strcmp(send_data,"mkdir")==0)
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						printf("Directory has been created!\n");
+					}
+					else if(strcmp(send_data,"chdir")==0)
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						
+					}
+					else if(strcmp(send_data,"remove")==0 )
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						
+						memset(recv_data,'\0',strlen(recv_data));
+						bytes_r=recv(sd,recv_data,1024,0);	
+						recv_data[bytes_r] = '\0';				
+											
+						printf("%s",recv_data);
+					}
+					else if(strcmp(send_data,"ls")==0)
+					{	printf("The directory contains: \n");
+						recv(sd,op,sizeof(op),0);
+						printf("%s",op);
+						memset(op,'\0',strlen(op));
+						fflush(stdout);		
+					}	
+					else
+						printf("Invalid Command\n");			
 
+				}
+				else		//non-admin
+				{	scanf("%s",send_data);
+					send(sd,send_data,strlen(send_data), 0);//sending cmd
+					if(strcmp(send_data,"quit")==0)
+						break;
+					else if(strcmp(send_data,"put")==0)
+					{	printf("\nEnter the new file:\n#ssh@%s: ",user_data);
+						//memset(send_data,'\0',strlen(send_data));
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+					
+						fp=fopen(fname,"rb");
+						fseek(fp,0L,SEEK_END);
+						m=ftell(fp);
+						op1=malloc(m*sizeof(char));
+						fseek(fp,0,SEEK_SET);
+						fread(op1,m,1,fp);
+						send(sd,op1,m,0);
+						fclose(fp);
+							
+					}
+					else if(strcmp(send_data,"get")==0)
+					{	printf("\nEnter the new file:\n#ssh@%s: ",user_data);
+						//memset(send_data,'\0',strlen(send_data));
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						//recv(connected,fname,sizeof(fname),0);
+						if ((fp=fopen(fname,"w"))==NULL)
+						{	printf("error in opening in a file");
+							exit(0);
+						}
+						else 
+							printf("file opened successfully \n");
+						memset(op,'\0',strlen(op));
+						
+						recv(sd,op,sizeof(op),0);
+						fwrite(op,strlen(op),1,fp);
+						fclose(fp);
+						printf("The file has been transferred!\n");
+					}
+					else if(strcmp(send_data,"mkdir")==0)
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						
+						memset(recv_data,'\0',strlen(recv_data));
+						bytes_r=recv(sd,recv_data,1024,0);	
+						recv_data[bytes_r] = '\0';				
+											
+						printf("%s",recv_data);
+					}
+					else if(strcmp(send_data,"chdir")==0)
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						
+						memset(recv_data,'\0',strlen(recv_data));
+						bytes_r=recv(sd,recv_data,1024,0);	
+						recv_data[bytes_r] = '\0';				
+											
+						printf("%s",recv_data);
+						
+					}
+					else if(strcmp(send_data,"remove")==0 )
+					{	printf("Enter the name of the directory:\nssh@%s: ",user_data);
+						scanf("%s",fname);
+						send(sd,fname,sizeof(fname),0);
+						
+						memset(recv_data,'\0',strlen(recv_data));
+						bytes_r=recv(sd,recv_data,1024,0);	
+						recv_data[bytes_r] = '\0';				
+											
+						printf("%s",recv_data);
+					}
+					else if(strcmp(send_data,"ls")==0)
+					{	printf("The directory contains: \n");
+						recv(sd,op,sizeof(op),0);
+						printf("%s",op);
+						memset(op,'\0',strlen(op));
+						fflush(stdout);		
+					}					
+					else
+						printf("Invalid Command\n");			
+
+				}
+							
+			}	
+		}
+		else					// password Failed to connect
+		{	printf("%s",recv_data);
+		}
+		printf("Do you want to close the terminal. Yes==0 No==1: ");
+		scanf("%d",&flag);
+	}	
+	return 0;
 }
 
-
+		

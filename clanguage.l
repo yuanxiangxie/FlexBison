@@ -82,7 +82,6 @@ WhiteSpace [ \t]+
 "while" |
 "include" {
 	printf("%s", yytext);
-	//printf("%s", yytext);
 }
 
 ";" | 
@@ -151,15 +150,15 @@ WhiteSpace [ \t]+
 }
 
 "//".* {
-	printf("%s", yytext);
+	//printf("%s", yytext);
 }
 
 "/*"([^*]|\*+[^*/])*\**"*/" {
-	printf("%s", yytext);
+	//printf("%s", yytext);
 }
 
 "'"[^'\n]"'" {
-	printf("%s", yytext);
+	//printf("%s", yytext);
 }
 
 "\""([^"]|\\\"+)*"\"" {
@@ -188,7 +187,7 @@ WhiteSpace [ \t]+
 int main()
 {
 	freopen("file.in", "r", stdin);
-	freopen("file.c", "w", stdout);
+	freopen("route.cpp", "w", stdout);
 	yylex();
 	printf("%s", yytext);
 	return 0;
