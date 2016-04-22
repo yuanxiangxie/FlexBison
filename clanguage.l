@@ -81,7 +81,8 @@ WhiteSpace [ \t]+
 
 "while" |
 "include" {
-	printf("Line:%d (Key: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
+	//printf("%s", yytext);
 }
 
 ";" | 
@@ -92,7 +93,7 @@ WhiteSpace [ \t]+
 "{" |
 "}" |
 "," {
-	printf("Line:%d (Sep: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "+" |
@@ -117,7 +118,7 @@ WhiteSpace [ \t]+
 "^=" |
 "<<" |
 ">>" {
-	printf("Line:%d (Opa: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 ">" |
@@ -125,61 +126,61 @@ WhiteSpace [ \t]+
 ">=" |
 "<=" |
 "==" {
-	printf("Line:%d (Cmp: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "=" {
-	printf("Line:%d (Asg: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "." |
 "#" {
-	printf("Line:%d (Spec: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 {Identifiers} {
-	printf("Line:%d (Ide: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 {Integer} {
-	printf("Line:%d (Int: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 {Float} {
-	printf("Line:%d (Flo: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "//".* {
-	printf("Line:%d (Note: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "/*"([^*]|\*+[^*/])*\**"*/" {
-	printf("Line:%d (Note: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "'"[^'\n]"'" {
-	printf("Line:%d (Char: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 "\""([^"]|\\\"+)*"\"" {
-	printf("Line:%d (Str: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 [\n] {
 //	yylineno++;
-	printf("Line:%d %s\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 [ \t\v\b\r\f\a] {
-	printf("Line:%d (Bnk: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 [\\\?] {
-	printf("Line:%d (Spe: %s)\n", yylineno, yytext);
+	printf("%s", yytext);
 }
 
 . {
-	printf("Line:%d Unexpected Word Was Analysed!", yylineno);
+	printf("%s", yytext);
 }
 
 %%
@@ -189,7 +190,7 @@ int main()
 	freopen("file.in", "r", stdin);
 	freopen("file.c", "w", stdout);
 	yylex();
-	printf("\n//The analysize of character is finish !\n");
+	printf("%s", yytext);
 	return 0;
 }
 
